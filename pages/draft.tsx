@@ -1,7 +1,6 @@
 import Link from "next/link"
 import { useSupabaseClient, useUser } from "@supabase/auth-helpers-react"
 import { useQuery } from "@tanstack/react-query"
-import ContentLoader from "react-content-loader"
 
 import { Database } from "@/types/supabase"
 import { Icons } from "@/components/icons"
@@ -15,7 +14,7 @@ export default function IndexPage() {
   /**
    * @todo add pagination
    */
-  const { data, error, isLoading } = useQuery({
+  const { data, isSuccess } = useQuery({
     queryKey: ["posts"],
     queryFn: async () =>
       await supabaseClient
@@ -29,17 +28,27 @@ export default function IndexPage() {
             )
       `
         )
-        .eq("draft", false)
+        .eq("draft", true)
+        .eq("author_id", user.id)
         .range(0, 13)
         .throwOnError(),
   })
 
+  if (isSuccess && data?.data?.length === 0) {
+    return (
+      <Layout>
+        <section className="flex h-screen flex-col items-center justify-center gap-2">
+          <Icons.draft size={80} />
+          <h2 className="mt-2 text-4xl font-bold">No Draft</h2>
+          <p>No draft posts available yet, please try again later</p>
+        </section>
+      </Layout>
+    )
+  }
+
   return (
     <Layout>
       <section className="min-h-screen ltr:border-r rtl:border-l">
-        {!user && <section></section>}
-        {isLoading &&
-          [...Array(4)].map(() => <PostCardLoading className="border-b p-8" />)}
         {data?.data?.map(({ id, title, profiles, content, created_at }) => {
           const paragraph = joinText(JSON.parse(content).root)
           return (
@@ -72,7 +81,7 @@ export default function IndexPage() {
                   </div>
                 </div>
                 <div>
-                  <Link passHref href={`/posts/${id}`}>
+                  <Link passHref href={`/posts/update/${id}`}>
                     <h2 className="text-4xl font-bold">{title}</h2>
                   </Link>
                   <div className="my-2 flex gap-2">
@@ -91,26 +100,6 @@ export default function IndexPage() {
     </Layout>
   )
 }
-
-const PostCardLoading = (props) => (
-  <ContentLoader
-    speed={2}
-    width={500}
-    height={200}
-    viewBox="0 0 500 200"
-    backgroundColor="#f3f3f3"
-    foregroundColor="#ecebeb"
-    {...props}
-  >
-    <rect x="69" y="11" rx="3" ry="3" width="69" height="8" />
-    <rect x="1" y="147" rx="3" ry="3" width="344" height="5" />
-    <rect x="1" y="163" rx="3" ry="3" width="334" height="5" />
-    <rect x="1" y="178" rx="3" ry="3" width="178" height="6" />
-    <circle cx="25" cy="25" r="25" />
-    <rect x="2" y="70" rx="0" ry="0" width="320" height="25" />
-    <rect x="367" y="25" rx="0" ry="0" width="165" height="168" />
-  </ContentLoader>
-)
 
 function calculateReadingTime(text) {
   const wordsPerMinute = 200 // Average reading speed is 200 words per minute
